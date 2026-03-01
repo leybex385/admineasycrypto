@@ -7,7 +7,7 @@
     <title>EasyCrypto Admin Panel</title>
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.fontsource.org/fontsource-inter/index.css" rel="stylesheet">
     <style>
         * {
             font-family: 'Inter', sans-serif;
@@ -2450,147 +2450,12 @@
     </div>
 
     <script type="module">
-        import { auth, db, signOut, checkSession, collection, onSnapshot } from '../firebase-config.js';
+        import { auth, signOut, checkSession } from '../firebase-config.js';
 
         window.addEventListener('DOMContentLoaded', async () => {
             const user = await checkSession(true);
-            // Start listening to users
-            listenToUsers();
+            // Optionally redirect if not admin
         });
-
-        function listenToUsers() {
-            const usersCol = collection(db, 'users');
-            console.log("Admin: Initializing 'users' viewer...");
-
-            onSnapshot(usersCol, (snapshot) => {
-                console.log("Admin: Received users snapshot. Count:", snapshot.size);
-                const users = [];
-                snapshot.forEach(docSnap => {
-                    const data = docSnap.data();
-                    console.log(`Admin User: ${docSnap.id}`, data);
-                    users.push({ id: docSnap.id, ...data });
-                });
-
-                updateUsersUI(users);
-                updateDashboardStats(users);
-
-                // Expose users globally for console inspection
-                window._debug_users = users;
-            }, (error) => {
-                console.error("Admin: Firebase Permission/Connection Error:", error);
-                // Fail-safe: update UI to show error
-                const mobileTable = document.getElementById('mobileUsersTable');
-                if (mobileTable) {
-                    mobileTable.innerHTML = `<tr><td colspan="9" class="text-center text-red-500 py-12">
-                        <i class="ri-error-warning-line text-2xl mb-2 block"></i>
-                        Database Error: ${error.message}<br>
-                        <small>Check Firebase Rules or project configuration.</small>
-                    </td></tr>`;
-                }
-            });
-        }
-
-        function updateUsersUI(users) {
-            const mobileTable = document.getElementById('mobileUsersTable');
-            const websiteTable = document.getElementById('websiteUsersTable');
-
-            if (!mobileTable || !websiteTable) return;
-
-            // Separate users (assuming users have a 'platform' field, default to mobile if not present)
-            const mobileUsers = users.filter(u => !u.platform || u.platform.toLowerCase() === 'mobile');
-            const websiteUsers = users.filter(u => u.platform && u.platform.toLowerCase() === 'website');
-
-            // Populate Mobile Table
-            if (mobileUsers.length === 0) {
-                mobileTable.innerHTML = '<tr><td colspan="9" class="text-center text-gray-400 py-12">No mobile users registered yet.</td></tr>';
-            } else {
-                mobileTable.innerHTML = mobileUsers.map(u => `
-                    <tr>
-                        <td class="font-mono text-xs text-gray-400">#${u.id.substring(0, 8)}</td>
-                        <td>
-                            <div class="flex items-center gap-3">
-                                <div class="avatar text-xs">${(u.name || (u.email ? u.email.split('@')[0] : 'U')).substring(0, 2).toUpperCase()}</div>
-                                <span class="font-medium text-gray-800">${u.name || (u.email ? u.email.split('@')[0] : 'User')}</span>
-                            </div>
-                        </td>
-                        <td>${u.email || '-'}</td>
-                        <td>${u.mobile || u.phone || '-'}</td>
-                        <td><span class="font-bold text-gray-800">$${(u.balance || u.usdt_balance || 0).toLocaleString()}</span></td>
-                        <td><span class="status-badge ${u.kycStatus === 'verified' ? 'status-verified' : u.kycStatus === 'pending' ? 'status-pending' : 'status-offline'}">${u.kycStatus || 'Not Started'}</span></td>
-                        <td><span class="status-badge ${u.status === 'active' ? 'status-active' : 'status-suspended'}">${u.status || 'Active'}</span></td>
-                        <td>${u.createdAt || u.joinedAt ? new Date(u.createdAt || u.joinedAt).toLocaleDateString() : 'New'}</td>
-                        <td>
-                            <div class="flex gap-2">
-                                <button class="action-btn view" onclick="alert('Viewing user ${u.id}')"><i class="ri-eye-line"></i></button>
-                                <button class="action-btn edit" onclick="alert('Editing user ${u.id}')"><i class="ri-pencil-line"></i></button>
-                                <button class="action-btn delete" onclick="deleteFirebaseUser('${u.id}')"><i class="ri-delete-bin-line"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                `).join('');
-            }
-
-            // Populate Website Table
-            if (websiteUsers.length === 0) {
-                websiteTable.innerHTML = '<tr><td colspan="8" class="text-center text-gray-400 py-12">No website users registered.</td></tr>';
-            } else {
-                websiteTable.innerHTML = websiteUsers.map(u => `
-                    <tr>
-                        <td class="font-mono text-xs text-gray-400">#${u.id.substring(0, 8)}</td>
-                        <td>
-                            <div class="flex items-center gap-3">
-                                <div class="avatar text-xs">${(u.name || (u.email ? u.email.split('@')[0] : 'U')).substring(0, 2).toUpperCase()}</div>
-                                <span class="font-medium text-gray-800">${u.name || (u.email ? u.email.split('@')[0] : 'User')}</span>
-                            </div>
-                        </td>
-                        <td>${u.email || '-'}</td>
-                        <td><span class="font-bold text-gray-800">$${(u.balance || 0).toLocaleString()}</span></td>
-                        <td><span class="status-badge ${u.kycStatus === 'verified' ? 'status-verified' : 'status-pending'}">${u.kycStatus || 'Not Started'}</span></td>
-                        <td><span class="status-badge ${u.status === 'active' ? 'status-active' : 'status-suspended'}">${u.status || 'Active'}</span></td>
-                        <td>${u.joinedAt ? (typeof u.joinedAt.toDate === 'function' ? u.joinedAt.toDate().toLocaleDateString() : new Date(u.joinedAt).toLocaleDateString()) : 'New'}</td>
-                        <td>
-                             <div class="flex gap-2">
-                                <button class="action-btn view" onclick="alert('Viewing user ${u.id}')"><i class="ri-eye-line"></i></button>
-                                <button class="action-btn delete" onclick="deleteFirebaseUser('${u.id}')"><i class="ri-delete-bin-line"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                `).join('');
-            }
-        }
-
-        function updateDashboardStats(users) {
-            const totalUsers = users.length;
-            const mobileUsers = users.filter(u => !u.platform || u.platform.toLowerCase() === 'mobile').length;
-            const websiteUsers = users.filter(u => u.platform && u.platform.toLowerCase() === 'website').length;
-
-            const dashStats = document.querySelectorAll('#dashboard h3');
-            if (dashStats.length >= 3) {
-                dashStats[0].innerText = totalUsers;
-                dashStats[1].innerText = mobileUsers;
-                dashStats[2].innerText = websiteUsers;
-            }
-        }
-
-        window.addEventListener('DOMContentLoaded', () => {
-            if (window.location.protocol === 'file:') {
-                const warning = document.createElement('div');
-                warning.style.cssText = 'position:fixed; top:20px; right:20px; background:#fee2e2; color:#dc2626; padding:15px; border-radius:8px; border:1px solid #fecaca; z-index:9999; box-shadow:0 4px 12px rgba(0,0,0,0.1); max-width:300px; font-size:13px;';
-                warning.innerHTML = `
-                    <div style="font-weight:bold; margin-bottom:5px;"><i class="ri-error-warning-line"></i> Local File Detected</div>
-                    Browser security blocks database connection on local files. Please use a local server (e.g., Live Server or python -m http.server) to view users.
-                `;
-                document.body.appendChild(warning);
-            }
-        });
-
-        window.deleteFirebaseUser = async function (userId) {
-            if (confirm('Are you sure you want to delete this user from Firebase?')) {
-                // To implement delete if needed: import { deleteDoc, doc } from '../firebase-config.js';
-                // await deleteDoc(doc(db, 'users', userId));
-                alert('Delete functionality not fully implemented. Contact admin.');
-            }
-        }
 
         window.fire_handleLogout = async function () {
             if (confirm('Are you sure you want to log out?')) {
