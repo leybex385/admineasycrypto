@@ -2687,7 +2687,10 @@
                     html = '<tr><td colspan="11" class="text-center text-gray-400 py-12">No perpetual positions found.</td></tr>';
                 }
                 contractsTable.innerHTML = html;
-                document.querySelector('#contracts .stat-card:nth-child(1) h3').innerText = openCount;
+                const openCountCard = document.querySelector('#contracts .stat-card:nth-child(1) h3');
+                if (openCountCard) {
+                    openCountCard.innerText = openCount;
+                }
             });
         }
 
